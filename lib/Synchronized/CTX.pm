@@ -14,9 +14,22 @@ sub new {
     my %opts  = @_;
     my @CTX;
 
-    $CTX[LOCK_CB] = $opts{lock} || ( !$opts{lazy} && die "need lock cb" );
-    $CTX[UNLOCK_CB]
-        = $opts{unlock} || ( !$opts{lazy} && die "need unlock cb" );
+    if ( $opts{lock} ) {
+        $CTX[LOCK_CB] = $opts{lock};
+    }
+    elsif ( !$opts{lazy} ) {
+
+        die "need lock cb";
+    }
+
+    if ( $opts{unlock} ) {
+        $CTX[UNLOCK_CB] = $opts{unlock};
+    }
+    elsif ( !$opts{lazy} ) {
+
+        die "need unlock cb";
+    }
+
     $CTX[GEN_NAME_PART] = $opts{gen_name_part};
     bless \@CTX, $class;
 }

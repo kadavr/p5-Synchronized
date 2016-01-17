@@ -2,7 +2,6 @@ package Synchronized::memd;
 
 use Synchronized;
 use strict;
-use Data::Dumper;
 use Time::HiRes qw/usleep/;
 
 use constant { MEMD => 0, LIVETIME => 1 };

@@ -3,9 +3,11 @@ package Synchronized;
 use strict;
 use warnings FATAL => 'all';
 
-use Data::Dumper;
-
 use Synchronized::CTX;
+
+use constant {
+    DEBUG => $ENV{SyncDEBUG},
+};
 
 use constant {
     OK          => 0,
@@ -20,7 +22,7 @@ use constant {
 use constant {
     LOCK_CB       => 0,
     UNLOCK_CB     => 1,
-    GEN_NAME_PART => 2
+    GEN_NAME_PART => 2,
 };
 
 our $VERSION = 0.01;
@@ -40,11 +42,13 @@ my $depth = 0;
 sub internal_synchronized($$$$) {
     my ( $cv, $patent_ctx, $package, $line ) = @_;
     my $lock_name = "lock_${package}_${line}";
+
     if ( $patent_ctx->[GEN_NAME_PART] ) {
         $lock_name .= $patent_ctx->[GEN_NAME_PART]->($patent_ctx) // '';
     }
 
     if ( ++$depth > 1 ) {
+        warn "Recursion not allowed; $package line $line" if DEBUG;
         return RECURSION;
     }
 
@@ -53,7 +57,7 @@ sub internal_synchronized($$$$) {
         = eval { return $patent_ctx->[LOCK_CB]->( $lock_name, $patent_ctx ); };
 
     if ($@) {
-        warn $@;
+        warn "Synchronized lock died: $@" if DEBUG;
         $ret = LOCK_DIED;
     }
     elsif ( !$lock ) {
@@ -62,6 +66,7 @@ sub internal_synchronized($$$$) {
     else {
         eval { $cv->(); };
         if ($@) {
+            warn "Synchronized body died: $@" if DEBUG;
             $ret = BODY_DIED;
         }
 
@@ -69,6 +74,7 @@ sub internal_synchronized($$$$) {
             return $patent_ctx->[UNLOCK_CB]->( $lock_name, $patent_ctx );
         };
         if ($@) {
+            warn "Synchronized unlock died: $@" if DEBUG;
             $ret = UNLOCK_DIED;
         }
         elsif ( !$unlock ) {
@@ -80,17 +86,20 @@ sub internal_synchronized($$$$) {
 }
 
 sub internal_ctx($) {
+    warn "Synchronized return context for package $_[0] from " . caller if DEBUG;
     return $CTX{ $_[0] };
 }
 
 sub internal_new_ctx($;@) {
     my $package = shift;
     my %args    = @_;
+    warn "Synchronized create new context for package $package from " . caller if DEBUG;
     $CTX{$package} = Synchronized::CTX->new(%args);
 }
 
 sub internal_export_symbol($$$) {
     my ( $package, $name, $symbol ) = @_;
+    warn "Synchronized export " . $symbol . " to " . $package . " as " . $name if DEBUG;
     no strict;
     *{ $package . '::' . $name } = $symbol;
     use strict;

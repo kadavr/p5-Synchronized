@@ -68,7 +68,7 @@ use Synchronized::memd {
 sub run {
     my $key = shift;
     my $memd = Cache::Memcached::Fast->new( { servers => ['127.0.0.1:11211'] } );
-    my $ret = synchronized {
+    synchronized {
         my $val = $memd->get($key);
         $val //= 0;
         $val += 1;
@@ -76,6 +76,7 @@ sub run {
     };
     return $ret
 }
+
 
 
 1;
